@@ -27,22 +27,27 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Save workflow file before reset
+      - name: Clone upstream repository
         run: |
-          mkdir -p /tmp/workflows
-          cp .github/workflows/sync-upstream.yml /tmp/workflows/sync-upstream.yml
+          rm -rf /tmp/markitdown-upstream
+          git clone --depth 1 https://github.com/microsoft/markitdown.git /tmp/markitdown-upstream
 
-      - name: Add upstream remote
+      - name: Copy upstream files without touching workflow permissions
         run: |
-          git remote add upstream https://github.com/microsoft/markitdown.git || git remote set-url upstream https://github.com/microsoft/markitdown.git
-          git fetch upstream main
+          shopt -s dotglob
+          for item in * .*; do
+            case "$item" in
+              .|..|.git|.github) continue ;;
+              *) rm -rf "$item" ;;
+            esac
+          done
+          rsync -a --delete \
+            --exclude '.git' \
+            --exclude '.github' \
+            /tmp/markitdown-upstream/ ./
 
-      - name: Replace repository with upstream main and keep sync workflow
+      - name: Commit and push synchronized files
         run: |
-          git checkout main
-          git reset --hard upstream/main
-          mkdir -p .github/workflows
-          cp /tmp/workflows/sync-upstream.yml .github/workflows/sync-upstream.yml
           git add -A
-          git commit -m "Sync with microsoft/markitdown upstream" || echo "No changes to commit"
-          git push origin main --force
+          git commit -m "Sync source files from microsoft/markitdown" || echo "No changes to commit"
+          git push origin main
