@@ -1,1 +1,1 @@
-trigger upstream sync
+trigger upstream sync - retry 1
