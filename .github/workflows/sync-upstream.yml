@@ -1,0 +1,75 @@
+name: Sync upstream markitdown
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout target repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/microsoft/markitdown.git || git remote set-url upstream https://github.com/microsoft/markitdown.git
+          git fetch upstream main
+
+      - name: Replace repository with upstream main
+        run: |
+          git checkout main
+          git reset --hard upstream/main
+          mkdir -p .github/workflows
+          cat > .github/workflows/sync-upstream.yml <<'EOF'
+          name: Sync upstream markitdown
+
+          on:
+            workflow_dispatch:
+
+          permissions:
+            contents: write
+
+          jobs:
+            sync:
+              runs-on: ubuntu-latest
+              steps:
+                - name: Checkout target repository
+                  uses: actions/checkout@v4
+                  with:
+                    token: ${{ secrets.GITHUB_TOKEN }}
+                    fetch-depth: 0
+
+                - name: Configure Git
+                  run: |
+                    git config user.name "github-actions[bot]"
+                    git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+                - name: Add upstream remote
+                  run: |
+                    git remote add upstream https://github.com/microsoft/markitdown.git || git remote set-url upstream https://github.com/microsoft/markitdown.git
+                    git fetch upstream main
+
+                - name: Replace repository with upstream main
+                  run: |
+                    git checkout main
+                    git reset --hard upstream/main
+                    mkdir -p .github/workflows
+                    git show HEAD:.github/workflows/sync-upstream.yml > .github/workflows/sync-upstream.yml 2>/dev/null || true
+                    git add -A
+                    git commit -m "Sync with microsoft/markitdown upstream" || echo "No changes to commit"
+                    git push origin main --force
+          EOF
+          git add -A
+          git commit -m "Sync with microsoft/markitdown upstream" || echo "No changes to commit"
+          git push origin main --force
